@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -41,7 +42,8 @@ import androidx.compose.ui.unit.dp
 fun TaskScreen(viewModel: TaskViewModel) {
     val tasks by viewModel.filteredTasks.collectAsState()
     val filter by viewModel.filter.collectAsState()
-    var showDialog by remember { mutableStateOf(false) }
+    var showAddDialog by remember { mutableStateOf(false) }
+    var taskToEdit by remember { mutableStateOf<Task?>(null) }
 
     Scaffold(
         topBar = {
@@ -55,7 +57,7 @@ fun TaskScreen(viewModel: TaskViewModel) {
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { showDialog = true }) {
+            FloatingActionButton(onClick = { showAddDialog = true }) {
                 Icon(Icons.Default.Add, contentDescription = "Agregar tarea")
             }
         }
@@ -72,7 +74,10 @@ fun TaskScreen(viewModel: TaskViewModel) {
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("No hay tareas", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        "No hay tareas",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             } else {
                 LazyColumn {
@@ -80,6 +85,7 @@ fun TaskScreen(viewModel: TaskViewModel) {
                         TaskRow(
                             task = task,
                             onToggle = { viewModel.toggleTaskCompletion(task) },
+                            onEdit = { taskToEdit = task },
                             onDelete = { viewModel.deleteTask(task) }
                         )
                     }
@@ -88,10 +94,25 @@ fun TaskScreen(viewModel: TaskViewModel) {
         }
     }
 
-    if (showDialog) {
-        AddTaskDialog(
-            onDismiss = { showDialog = false },
-            onAdd = { viewModel.addTask(it) }
+    // Diálogo para agregar
+    if (showAddDialog) {
+        TaskDialog(
+            title = "Nueva tarea",
+            initialText = "",
+            confirmLabel = "Agregar",
+            onDismiss = { showAddDialog = false },
+            onConfirm = { viewModel.addTask(it) }
+        )
+    }
+
+    // Diálogo para editar
+    taskToEdit?.let { task ->
+        TaskDialog(
+            title = "Editar tarea",
+            initialText = task.description,
+            confirmLabel = "Guardar",
+            onDismiss = { taskToEdit = null },
+            onConfirm = { viewModel.editTask(task, it) }
         )
     }
 }
@@ -115,7 +136,12 @@ fun FilterRow(current: TaskFilter, onSelect: (TaskFilter) -> Unit) {
 }
 
 @Composable
-fun TaskRow(task: Task, onToggle: () -> Unit, onDelete: () -> Unit) {
+fun TaskRow(
+    task: Task,
+    onToggle: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -126,10 +152,14 @@ fun TaskRow(task: Task, onToggle: () -> Unit, onDelete: () -> Unit) {
         Text(
             text = task.description,
             modifier = Modifier.weight(1f),
-            textDecoration = if (task.isCompleted) TextDecoration.LineThrough else TextDecoration.None,
+            textDecoration = if (task.isCompleted) TextDecoration.LineThrough
+            else TextDecoration.None,
             color = if (task.isCompleted) MaterialTheme.colorScheme.onSurfaceVariant
             else MaterialTheme.colorScheme.onSurface
         )
+        IconButton(onClick = onEdit) {
+            Icon(Icons.Default.Edit, contentDescription = "Editar tarea")
+        }
         IconButton(onClick = onDelete) {
             Icon(Icons.Default.Delete, contentDescription = "Eliminar tarea")
         }
@@ -137,12 +167,18 @@ fun TaskRow(task: Task, onToggle: () -> Unit, onDelete: () -> Unit) {
 }
 
 @Composable
-fun AddTaskDialog(onDismiss: () -> Unit, onAdd: (String) -> Unit) {
-    var text by remember { mutableStateOf("") }
+fun TaskDialog(
+    title: String,
+    initialText: String,
+    confirmLabel: String,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit
+) {
+    var text by remember { mutableStateOf(initialText) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Nueva tarea") },
+        title = { Text(title) },
         text = {
             OutlinedTextField(
                 value = text,
@@ -154,10 +190,10 @@ fun AddTaskDialog(onDismiss: () -> Unit, onAdd: (String) -> Unit) {
         confirmButton = {
             TextButton(onClick = {
                 if (text.isNotBlank()) {
-                    onAdd(text.trim())
+                    onConfirm(text.trim())
                     onDismiss()
                 }
-            }) { Text("Agregar") }
+            }) { Text(confirmLabel) }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text("Cancelar") }
