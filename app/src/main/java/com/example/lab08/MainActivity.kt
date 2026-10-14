@@ -9,14 +9,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.room.Room
-import com.example.lab08.TaskDatabase
-import com.example.lab08.TaskViewModel
 import kotlinx.coroutines.launch
 import com.example.lab08.ui.theme.Lab08Theme
 
@@ -46,5 +42,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
+
+
 
 

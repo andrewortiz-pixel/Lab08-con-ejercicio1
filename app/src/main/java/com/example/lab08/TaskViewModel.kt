@@ -11,46 +11,57 @@ import kotlinx.coroutines.launch
 
 enum class TaskFilter(val label: String) {
     ALL("Todas"),
-    PENDING("Pendientes"),
-    DONE("Completadas")
+    DONE("Completadas"),
+    PENDING("Pendientes")
 }
 
 class TaskViewModel(private val dao: TaskDao) : ViewModel() {
 
     private val _tasks = MutableStateFlow<List<Task>>(emptyList())
+    val tasks: StateFlow<List<Task>> = _tasks
 
     private val _filter = MutableStateFlow(TaskFilter.ALL)
     val filter: StateFlow<TaskFilter> = _filter
 
-    // Lista ya filtrada que consume la UI
     val filteredTasks: StateFlow<List<Task>> =
         combine(_tasks, _filter) { list, f ->
             when (f) {
                 TaskFilter.ALL -> list
-                TaskFilter.PENDING -> list.filter { !it.isCompleted }
                 TaskFilter.DONE -> list.filter { it.isCompleted }
+                TaskFilter.PENDING -> list.filter { !it.isCompleted }
             }
         }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     init {
-        viewModelScope.launch { _tasks.value = dao.getAllTasks() }
+        viewModelScope.launch {
+            _tasks.value = dao.getAllTasks()
+        }
     }
 
-    fun setFilter(filter: TaskFilter) {
-        _filter.value = filter
+    fun setFilter(f: TaskFilter) {
+        _filter.value = f
     }
 
     fun addTask(description: String) {
+        val newTask = Task(description = description)
         viewModelScope.launch {
-            dao.insertTask(Task(description = description))
+            dao.insertTask(newTask)
             _tasks.value = dao.getAllTasks()
         }
     }
 
     fun toggleTaskCompletion(task: Task) {
         viewModelScope.launch {
-            dao.updateTask(task.copy(isCompleted = !task.isCompleted))
+            val updatedTask = task.copy(isCompleted = !task.isCompleted)
+            dao.updateTask(updatedTask)
             _tasks.value = dao.getAllTasks()
+        }
+    }
+
+    fun deleteAllTasks() {
+        viewModelScope.launch {
+            dao.deleteAllTasks()
+            _tasks.value = emptyList()
         }
     }
 
@@ -65,13 +76,6 @@ class TaskViewModel(private val dao: TaskDao) : ViewModel() {
         viewModelScope.launch {
             dao.updateTask(task.copy(description = newDescription))
             _tasks.value = dao.getAllTasks()
-        }
-    }
-
-    fun deleteAllTasks() {
-        viewModelScope.launch {
-            dao.deleteAllTasks()
-            _tasks.value = emptyList()
         }
     }
 }
